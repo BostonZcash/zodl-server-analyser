@@ -84,6 +84,8 @@ then runs Phase 2 once against the averaged ranking. Per-server columns:
 - `min-max` — overall fastest and slowest single-call observation.
 - `>5s` — count of individual calls (across all runs) that overshot the
   SDK budget but still completed within 20 s.
+- `sync gap` — latest observed `estimatedHeight - blockHeight` (red if
+  the server has drifted past the SDK's 288-block threshold).
 - `verdict` — `TOP #n`, `disqualified: <gate>` (gate fails on every
   responding run), `unreliable: >5s ×N` / `… err ×N` (intermittent), or
   `all failed`.

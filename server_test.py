@@ -388,6 +388,15 @@ class Sustained:
                 return r
         return None
 
+    @property
+    def sync_gap(self):
+        """Latest observed (estimatedHeight - blockHeight). None if no run
+        ever populated those fields."""
+        for r in reversed(self.runs):
+            if r.block_height is not None and r.estimated_height is not None:
+                return r.estimated_height - r.block_height
+        return None
+
 
 def aggregate(per_run_results, endpoints):
     by_endpoint = {(h, p): [] for h, p in endpoints}
@@ -554,7 +563,7 @@ def print_single(results, network, survivors, final_top, majority_branch):
 
 # ---------- Sustained-mode rendering ----------
 
-def print_sustained(sustained, n_runs, final_top, majority_branch):
+def print_sustained(sustained, n_runs, final_top):
     final_set = {(s.host, s.port) for s in final_top}
 
     def sort_key(s: Sustained):
@@ -604,7 +613,7 @@ def print_sustained(sustained, n_runs, final_top, majority_branch):
 
     widths = {
         "n": 2, "host": 22, "succ": 5, "info": 11, "latest": 11,
-        "mean": 16, "range": 16, "ovr": 4, "branch": 8, "fetch": 12,
+        "mean": 16, "range": 16, "ovr": 4, "gap": 9, "fetch": 12,
     }
     header_cells = [
         cell("#", widths["n"], BOLD, ">"),
@@ -615,7 +624,7 @@ def print_sustained(sustained, n_runs, final_top, majority_branch):
         cell("mean ±std", widths["mean"], BOLD, ">"),
         cell("min-max", widths["range"], BOLD, ">"),
         cell(">5s", widths["ovr"], BOLD, ">"),
-        cell("branch", widths["branch"], BOLD),
+        cell("sync gap", widths["gap"], BOLD, ">"),
         cell("fetch 100blk", widths["fetch"], BOLD, ">"),
         cell("verdict", 0, BOLD),
     ]
@@ -663,14 +672,12 @@ def print_sustained(sustained, n_runs, final_top, majority_branch):
         else:
             ovr_c = cell(str(ovr_count), widths["ovr"], MAGENTA, ">")
 
-        if s.consensus_branch_id:
-            branch_text = s.consensus_branch_id[: widths["branch"]]
-            if majority_branch and s.consensus_branch_id == majority_branch:
-                branch_c = cell(branch_text, widths["branch"], GREEN)
-            else:
-                branch_c = cell(branch_text, widths["branch"], RED)
+        gap = s.sync_gap
+        if gap is not None:
+            gap_color = GREEN if gap < SYNCED_THRESHOLD_BLOCKS else RED
+            gap_c = cell(str(gap), widths["gap"], gap_color, ">")
         else:
-            branch_c = cell("-", widths["branch"], DIM)
+            gap_c = cell("n/a", widths["gap"], DIM, ">")
 
         rep = s.representative
         if rep is not None and rep.block_range_ok:
@@ -715,7 +722,7 @@ def print_sustained(sustained, n_runs, final_top, majority_branch):
             cell(str(i), widths["n"], align=">"),
             cell(s.host, widths["host"]),
             succ_c, info_c, latest_c, mean_c, range_c, ovr_c,
-            branch_c, fetch_c, verdict,
+            gap_c, fetch_c, verdict,
         ]
         print("  " + "  ".join(row))
 
@@ -910,7 +917,7 @@ def main() -> int:
                 continue
             measure_block_range(rep)
 
-        print_sustained(sustained, n_runs, final_top_s, majority_branch)
+        print_sustained(sustained, n_runs, final_top_s)
 
     print()
     print(

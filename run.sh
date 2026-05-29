@@ -35,4 +35,10 @@ if [ ! -f generated/service_pb2.py ] || [ proto/service.proto -nt generated/serv
         proto/service.proto proto/compact_formats.proto
 fi
 
+# Force gRPC's name resolution through the system resolver (getaddrinfo)
+# rather than the bundled c-ares. On Linux, c-ares stalls on AAAA queries
+# for IPv4-only hosts whose authoritative nameservers don't promptly
+# answer with NODATA..
+export GRPC_DNS_RESOLVER=${GRPC_DNS_RESOLVER:-native}
+
 exec python server_test.py "$@"
